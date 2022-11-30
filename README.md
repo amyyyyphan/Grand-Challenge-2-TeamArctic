@@ -1,1 +1,1 @@
-"# Grand-Challenge-2-TeamArctic" 
+# Grand-Challenge-2-TeamArctic
