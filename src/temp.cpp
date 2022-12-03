@@ -7,7 +7,7 @@
 
 int main(int argc, char *argv[]) {
     int MAX_THREADS = 3;
-    int MAX_WORK = 5;
+    int MAX_WORK = 3;
 
     int provided;
 
@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
 
             switch (status.MPI_TAG) {
                 case 0:
-                    printf("Leader Received: %d from Rank %03d\n", value, status.MPI_SOURCE);
+                    printf("Leader Server Received: %d from Rank %03d\n", value, status.MPI_SOURCE);
                     MPI_Send(&value, 1, MPI_INT, 2, status.MPI_TAG, MPI_COMM_WORLD);
                     break;
                 default:
@@ -61,31 +61,43 @@ int main(int argc, char *argv[]) {
     } else if (rank > 1) {
         // worker server
         std::deque<std::pair<MPI_Status, int>> requests;
-        std::mutex mutex;
-
+        
         #pragma omp parallel
         {
-            int id = omp_get_thread_num();
-            if (id == 0) {
-                // thread to handle incoming messages
+            #pragma omp single
+            {
                 while (true) {
                     int value = 0;
                     MPI_Status status;
                     MPI_Recv(&value, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
                     bool isFull = false;
-                    mutex.lock();
-                    if (requests.size() >= MAX_WORK) {
-                        isFull = true;
-                        printf("Rank %03d queue full\n", rank);
+
+                    #pragma omp critical
+                    {
+                        if (requests.size() >= MAX_WORK) {
+                            isFull = true;
+                            printf("Rank %03d (worker server) queue full\n", rank);
+                        }
                     }
-                    mutex.unlock();
 
                     // if process request queue is full, send it to the next process
                     if (!isFull) {
                         std::pair<MPI_Status, int> pair = std::make_pair(status, value);
                         requests.push_back(pair);
-                        printf("Rank %03d Received: %d\n", rank, value);
+                        printf("Rank %03d (worker server) Received: %d\n", rank, value);
+
+                        #pragma omp task
+                        {
+                            #pragma omp critical
+                            {
+                                if (!requests.empty()) {
+                                    std::pair<MPI_Status, int> req = requests.front();
+                                    requests.pop_front();
+                                    printf("Rank %03d Worker Thread %d: %d\n", rank, omp_get_thread_num(), req.second);
+                                }
+                            }
+                        }
                     } else {
                         int next;
                         if (rank + 1 >= world_size) {
@@ -97,19 +109,9 @@ int main(int argc, char *argv[]) {
                         MPI_Send(&value, 1, MPI_INT, next, status.MPI_TAG, MPI_COMM_WORLD);
                     }
                 }
-            } else {
-                // thread to do work
-                while (true) {
-                    mutex.lock();
-                    if (!requests.empty()) {
-                        std::pair<MPI_Status, int> req = requests.front();
-                        requests.pop_front();
-                        printf("Rank %03d Thread %d: %d\n", rank, id, req.second);
-                    }
-                    mutex.unlock();
-                }
             }
         }
+        
     }
 
     MPI_Finalize();
