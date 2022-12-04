@@ -11,7 +11,7 @@ SET(OPENMP_CXX_FLAGS "-O3 -fopenmp")
 SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${OPENMP_CXX_FLAGS}" )
 
 # app targets
-# add_executable(server src/server.cpp)
-# add_executable(client src/client.cpp)
-# add_executable(worker src/worker.cpp)
-add_executable(temp src/temp.cpp)
+# add_executable(temp src/temp.cpp)
+
+add_executable(manager src/manager.cpp)
+add_executable(worker src/worker.cpp)
