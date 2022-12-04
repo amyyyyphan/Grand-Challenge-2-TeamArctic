@@ -36,13 +36,20 @@ int main(int argc, char *argv[]) {
     comms.push_back(intercomm);
     comms.push_back(second_intercomm);
 
-    int count = 0;
-    int value = 1;
+    //int count = 0;
+    //int value = 1;
     int commIndex = 0;
     int childIndex = 0;
 
+    std::deque<int> works;
+
+    for (int i = 0; i < iter; i++) {
+        works.push_back(i);
+    }
+
+/*
     while (count < iter) {
-        int tag = 0; /* Action to perform */
+        int tag = 0; //Action to perform
         MPI_Status status;
         //MPI_Send(&value, 1, MPI_INT, 0, tag, comms.at(0));
         //MPI_Send(&value, 1, MPI_INT, 1, tag, comms.at(0));
@@ -51,6 +58,29 @@ int main(int argc, char *argv[]) {
         MPI_Send(&value, 1, MPI_INT, childIndex, tag, comms.at(commIndex));
         value++;
         count++;
+
+        //Round robin under the assumption each intercomm has 2 processes
+        if (comms.size() > 1) {
+            if (commIndex == comms.size() - 1) commIndex = 0;
+            else commIndex++;
+        }
+        if (childIndex == 1) childIndex = 0;
+        else childIndex++;
+    }
+*/
+
+    while (works.size() > 0) {
+        int tag = 0; //Action to perform
+        MPI_Status status;
+        //MPI_Send(&value, 1, MPI_INT, 0, tag, comms.at(0));
+        //MPI_Send(&value, 1, MPI_INT, 1, tag, comms.at(0));
+
+        int value = works.front();
+        works.pop_front();
+        printf("Manager sent %d to %d\n", value, childIndex);
+        MPI_Send(&value, 1, MPI_INT, childIndex, tag, comms.at(commIndex));
+        //value++;
+        //count++;
 
         //Round robin under the assumption each intercomm has 2 processes
         if (comms.size() > 1) {
