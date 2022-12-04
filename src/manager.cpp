@@ -4,11 +4,8 @@
 #include <deque>
 #include <utility>
 #include <mutex>
-
+#include <vector>
 int main(int argc, char *argv[]) {
-    int MAX_THREADS = 3;
-    int MAX_WORK = 5;
-
     int provided;
 
     // MPI_Init(&argc, &argv);
@@ -29,32 +26,47 @@ int main(int argc, char *argv[]) {
         printf("No room to start workers");
     }
 
-    omp_set_num_threads(MAX_THREADS);
-
     MPI_Comm intercomm;
+    MPI_Comm second_intercomm;
     MPI_Comm_spawn("./worker", MPI_ARGV_NULL, 2, MPI_INFO_NULL, 0, MPI_COMM_SELF, &intercomm, MPI_ERRCODES_IGNORE);
+    MPI_Comm_spawn("./worker", MPI_ARGV_NULL, 2, MPI_INFO_NULL, 0, MPI_COMM_SELF, &second_intercomm, MPI_ERRCODES_IGNORE);
+    int iter = 100;
 
-    int iter = 10;
-
-    int children_num;
-    MPI_Comm_size(intercomm, &children_num);
+    std::vector<MPI_Comm> comms;
+    comms.push_back(intercomm);
+    comms.push_back(second_intercomm);
 
     int count = 0;
     int value = 1;
+    int commIndex = 0;
+    int childIndex = 0;
+
     while (count < iter) {
-        printf("Manager sent %d\n", value);
         int tag = 0; /* Action to perform */
         MPI_Status status;
-        MPI_Send(&value, 1, MPI_INT, 0, tag, intercomm);
-        MPI_Send(&value, 1, MPI_INT, 1, tag, intercomm);
+        //MPI_Send(&value, 1, MPI_INT, 0, tag, comms.at(0));
+        //MPI_Send(&value, 1, MPI_INT, 1, tag, comms.at(0));
+
+        printf("Manager sent %d to %d\n", value, childIndex);
+        MPI_Send(&value, 1, MPI_INT, childIndex, tag, comms.at(commIndex));
         value++;
         count++;
+
+        //Round robin under the assumption each intercomm has 2 processes
+        if (comms.size() > 1) {
+            if (commIndex == comms.size() - 1) commIndex = 0;
+            else commIndex++;
+        }
+        if (childIndex == 1) childIndex = 0;
+        else childIndex++;
     }
 
     while (true) {
         int value = 0;
         MPI_Status status;
+        MPI_Status second_status;
         MPI_Recv(&value, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, intercomm, &status);
+        MPI_Recv(&value, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, second_intercomm, &second_status);
 
         switch (status.MPI_TAG) {
             case 0:
@@ -64,6 +76,7 @@ int main(int argc, char *argv[]) {
                 /* Unexpected message type */
                 MPI_Abort(MPI_COMM_WORLD, 1);
         }
+        
     }
 
     MPI_Finalize();
