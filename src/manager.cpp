@@ -72,6 +72,9 @@ int main(int argc, char *argv[]) {
             case 0:
                 printf("Manager Received: %d from Children Rank %03d\n", value, status.MPI_SOURCE);
                 break;
+            case 1:
+                printf("Manager received %d since capacity was full\n", value);
+                break;
             default:
                 /* Unexpected message type */
                 MPI_Abort(MPI_COMM_WORLD, 1);
