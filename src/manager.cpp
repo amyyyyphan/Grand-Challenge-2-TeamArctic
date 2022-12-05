@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
     int newSpawnCap = 5;
     int countNew = 0;
     while (true) {
-        int value[2];
+        int value[comms.size()];
 
         MPI_Request requests[comms.size()];
         for (int i = 0; i < comms.size(); i++) {
