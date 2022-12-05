@@ -46,29 +46,6 @@ int main(int argc, char *argv[]) {
                 requests.push_back(pair);
                 printf("Children Rank %03d Received: %d\n", rank, value);
 
-                // bool isFull = false;
-                // mutex.lock();
-                // if (requests.size() >= MAX_WORK) {
-                //     isFull = true;
-                //     printf("Children Rank %03d queue full\n", rank);
-                // }
-                // mutex.unlock();
-
-                // // if process request queue is full, send it to the next process
-                // if (!isFull) {
-                //     std::pair<MPI_Status, int> pair = std::make_pair(status, value);
-                //     requests.push_back(pair);
-                //     printf("Rank %03d Received: %d\n", rank, value);
-                // } else {
-                //     int next;
-                //     if (rank + 1 >= size) {
-                //         next = 0;
-                //         printf("Rank %03d send to leader server: %d\n", rank, status.MPI_SOURCE);
-                //     } else {
-                //         next = rank + 1;
-                //     }
-                //     MPI_Send(&value, 1, MPI_INT, next, status.MPI_TAG, MPI_COMM_WORLD);
-                // }
             }
         } else {
             while (true) {
