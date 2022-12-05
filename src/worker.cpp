@@ -1,9 +1,11 @@
 #include "mpi.h"
 #include "omp.h"
+#include "../utility/Logger.h"
 
 #include <deque>
 #include <utility>
 #include <mutex>
+#include <thread>
 
 int main(int argc, char *argv[]) {
     int MAX_THREADS = 5;
@@ -63,7 +65,9 @@ int main(int argc, char *argv[]) {
                                 requests.pop_front();
                                 printf("Children Rank %03d Thread %d processing: %d\n", rank, omp_get_thread_num(), req.second);
                                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
+                                
+                                std::string message = "Processed: " + std::to_string(req.second);
+                                logger(message);
                                 int value = req.second;
                                 MPI_Send(&value, 1, MPI_INT, 0, 0, parent);
                             }
