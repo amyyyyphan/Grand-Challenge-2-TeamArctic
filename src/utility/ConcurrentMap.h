@@ -9,6 +9,9 @@
 #include <utility>
 
 #pragma once
+/*
+    references: https://stackoverflow.com/questions/48987641/thread-safe-stdmap-locking-the-entire-map-and-individual-values
+*/
 
 template <class K, class V>
 class ConcurrentMap {
@@ -72,7 +75,7 @@ int ConcurrentMap<K,V>::getMaxKey() {
         return -1;
 }
 
-template<, > 
+template<> 
 std::pair<int,int> ConcurrentMap<int,int>::getLowestValKeyPair() {
     std::unique_lock<decltype(mLock)> lock(mLock);
     int valLowest = INT_MAX;

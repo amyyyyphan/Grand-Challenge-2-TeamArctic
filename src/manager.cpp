@@ -13,23 +13,23 @@
 #include <utility>
 
 
-int isLoadHeavy(ConcurrentMap<int,int> map) {
+int isLoadHeavy(ConcurrentMap<int,int>& map) {
     int lazyProcesses = 0;
-    std::vector vals = map.getValues();
+    std::vector<int> vals = map.getValues();
 
     float sum = 0.0,mean = 0.0, variance = 0.0, stdDev = 0.0;
     for (int i = 0; i < vals.size(); i++) {
-        sum += val[i];
-        variance += pow(val[i] - mean, 2);
-        if (val[i] == 0) 
+        sum += vals[i];
+        variance += pow(vals[i] - mean, 2);
+        if (vals[i] == 0) 
             lazyProcesses++;
     }
     mean = sum/vals.size();
     variance = variance / vals.size();
     stdDev = sqrt(variance);
 
-    int WORK_CAP = 8000; // MAX AVERAGE WORK ALLOWED
-    int DEV_CAP = 900; // MAX DEVIATION ALLOWED
+    int WORK_CAP = 5000; // MAX AVERAGE WORK ALLOWED
+    int DEV_CAP = 600; // MAX DEVIATION ALLOWED
     if (mean >= WORK_CAP && stdDev <= DEV_CAP) {
         return 1;
     } else {
@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
 
     int MAX_THREADS = 7;
     int MAX_WORK = 6;
-    int children_num = 4 // initial children
+    int children_num = 3;  // initial children
     int MAX_CHILDREN = 5;
 
     // thread safe if threads only doing read operations
@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
 
     int universe_size, *universe_sizep, flag;
-    MPI_Attr_get(MPI_COMM_WORLD, MPI_UNIVERSE_SIZE, &universe_sizep, &flag);
+    MPI_Comm_get_attr(MPI_COMM_WORLD, MPI_UNIVERSE_SIZE, &universe_sizep, &flag);
     if (!flag) {
         printf("This MPI does not support UNIVERSE_SIZE");
     } else {
@@ -100,12 +100,12 @@ int main(int argc, char *argv[]) {
         {
             while(true) { // sending requests to lowest balance intercomm (process)
                 std::pair <int,int> lowestValKeyPair = statusMap.getLowestValKeyPair();
-                int value = sleepVals(rand() % 4);
+                int value = sleepVals[rand() % 4];
                 int tag = lowestValKeyPair.first; //sending manager assigned id as tag so they can send back
 
                 MPI_Comm intercomm = commMap.get(lowestValKeyPair.first);
-                MPI_Send(&value,1, MPI_INT,tag, intercomm);
-                usleep(80); // small delay
+                MPI_Send(&value,1, MPI_INT,0,tag, intercomm);
+                usleep(100); // small delay
             }
         }
 
@@ -113,24 +113,30 @@ int main(int argc, char *argv[]) {
         {
             while(true) {
                 std::vector<MPI_Comm> commVals = commMap.getValues();
-                for (size_t i = 0; i < commVals; i++)
+                int value[commVals.size()];
+                MPI_Request requests[commVals.size()];
+                MPI_Status status[commVals.size()];
+
+                for (size_t i = 0; i < commVals.size(); i++)
                 {
-                    #pragma omp task 
+                    #pragma omp task shared (value,requests,status)
                     {
-                        int value; // should be related to work balance
+                        //int value; // should be related to work balance
                         int tag; // should be manager assigned id
-                        MPI_Recv(&value,1,MPI_INT,MPI_ANY_SOURCE,&tag,commVals[i],MPI_STATUS_IGNORE);
+                        MPI_Irecv(&value[i], 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, commVals.at(i), &requests[i]);
 
                         // do something with value
-                        statusMap.set(tag,value);
+                        //statusMap.set(tag,value);
 
+                        MPI_Wait(requests,status);
                     }
                 }
                 usleep(50); // small delay between "heartbeat checks"
             }
         }
 
-        #pragma omp single {
+        #pragma omp single 
+        {
             while(true) {
                 int systemStatus = isLoadHeavy(statusMap); //1 == load heavy, -1 == idle nodes, 0 == normal
                 switch (systemStatus) { 
