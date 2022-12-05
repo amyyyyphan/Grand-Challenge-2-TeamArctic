@@ -1,5 +1,6 @@
 #include "mpi.h"
 #include "omp.h"
+#include "../utility/Logger.h"
 
 #include <deque>
 #include <utility>
@@ -103,6 +104,8 @@ int main(int argc, char *argv[]) {
                     MPI_Comm new_intercomm;
                     MPI_Comm_spawn("./worker", MPI_ARGV_NULL, 1, MPI_INFO_NULL, 0, MPI_COMM_SELF, &new_intercomm, MPI_ERRCODES_IGNORE);
                     comms.push_back(new_intercomm);
+                    std::string message = "Created new process";
+                    logger(message);
                 }
                 works.push_back(value[statIndex]);
                 break;
