@@ -28,13 +28,19 @@ int main(int argc, char *argv[]) {
 
     MPI_Comm intercomm;
     MPI_Comm second_intercomm;
+    MPI_Comm third_intercomm;
+    MPI_Comm fourth_intercomm;
     MPI_Comm_spawn("./worker", MPI_ARGV_NULL, 1, MPI_INFO_NULL, 0, MPI_COMM_SELF, &intercomm, MPI_ERRCODES_IGNORE);
     MPI_Comm_spawn("./worker", MPI_ARGV_NULL, 1, MPI_INFO_NULL, 0, MPI_COMM_SELF, &second_intercomm, MPI_ERRCODES_IGNORE);
-    int iter = 100;
+    MPI_Comm_spawn("./worker", MPI_ARGV_NULL, 1, MPI_INFO_NULL, 0, MPI_COMM_SELF, &third_intercomm, MPI_ERRCODES_IGNORE);
+    MPI_Comm_spawn("./worker", MPI_ARGV_NULL, 1, MPI_INFO_NULL, 0, MPI_COMM_SELF, &fourth_intercomm, MPI_ERRCODES_IGNORE);
+    int iter = 10000;
 
     std::vector<MPI_Comm> comms;
     comms.push_back(intercomm);
     comms.push_back(second_intercomm);
+    comms.push_back(third_intercomm);
+    comms.push_back(fourth_intercomm);
 
     int commIndex = 0;
 
@@ -57,6 +63,8 @@ int main(int argc, char *argv[]) {
         else commIndex++;
     }
 
+    int newSpawnCap = 5;
+    int countNew = 0;
     while (true) {
         int value[2];
 
@@ -80,22 +88,27 @@ int main(int argc, char *argv[]) {
         }
         
         MPI_Status statuses[comms.size()];
-        MPI_Waitall(comms.size(), requests, statuses);
-        int return_value;
-        for (int i = 0; i < comms.size(); i++) {
-            printf("status source %d and status tag %d\n", statuses[i].MPI_SOURCE, statuses[i].MPI_TAG);
-            switch (statuses[i].MPI_TAG) {
+        int statIndex;
+        MPI_Status status;
+        MPI_Waitany(comms.size(), requests, &statIndex, &status);
+        switch (status.MPI_TAG) {
             case 0:
-                printf("Manager Received: %d from Children Rank %03d\n", value[i], statuses[i].MPI_SOURCE);
+                printf("Manager Received: %d from Children Rank %03d\n", value[statIndex], status.MPI_SOURCE);
                 break;
             case 1:
-                printf("Manager received %d since capacity was full\n", value[i]);
-                works.push_back(value[i]);
+                printf("Manager received %d since capacity was full\n", value[statIndex]);
+                if (countNew < newSpawnCap) {
+                    printf("creating new process\n");
+                    countNew++;
+                    MPI_Comm new_intercomm;
+                    MPI_Comm_spawn("./worker", MPI_ARGV_NULL, 1, MPI_INFO_NULL, 0, MPI_COMM_SELF, &new_intercomm, MPI_ERRCODES_IGNORE);
+                    comms.push_back(new_intercomm);
+                }
+                works.push_back(value[statIndex]);
                 break;
             default:
                 // Unexpected message type 
                 MPI_Abort(MPI_COMM_WORLD, 1);
-            }
         }
     }
 

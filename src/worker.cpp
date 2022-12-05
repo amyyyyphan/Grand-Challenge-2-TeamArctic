@@ -7,7 +7,7 @@
 
 int main(int argc, char *argv[]) {
     int MAX_THREADS = 5;
-    int MAX_WORK = 5;
+    int MAX_WORK = 300;
 
     int provided;
 
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
                                 std::pair<MPI_Status, int> req = requests.front();
                                 requests.pop_front();
                                 printf("Children Rank %03d Thread %d processing: %d\n", rank, omp_get_thread_num(), req.second);
-                                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                                std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
                                 int value = req.second;
                                 MPI_Send(&value, 1, MPI_INT, 0, 0, parent);
